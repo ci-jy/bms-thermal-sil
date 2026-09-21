@@ -1,0 +1,64 @@
+VERSION "1.0"
+
+
+NS_ :
+
+BS_:
+
+BU_: BMS PLANT CHARGER
+
+
+BO_ 80 SIL_Sync: 8 PLANT
+ SG_ SIL_StepCounter : 0|32@1+ (1,0) [0|4294967295] "step" BMS
+
+BO_ 256 PLANT_CellTemps: 8 PLANT
+ SG_ T_CellA : 0|12@1+ (0.1,-40) [-40|369.5] "degC" BMS
+ SG_ T_CellB : 12|12@1+ (0.1,-40) [-40|369.5] "degC" BMS
+ SG_ T_CoolantIn : 24|12@1+ (0.1,-40) [-40|369.5] "degC" BMS
+ SG_ T_CoolantOut : 36|12@1+ (0.1,-40) [-40|369.5] "degC" BMS
+ SG_ CellTemps_Alive : 48|4@1+ (1,0) [0|15] "" BMS
+ SG_ CellTemps_CRC : 56|8@1+ (1,0) [0|255] "" BMS
+
+BO_ 272 PLANT_PackStatus: 8 PLANT
+ SG_ PackCurrent : 0|16@1- (0.1,0) [-3276.8|3276.7] "A" BMS
+ SG_ PackVoltage : 16|16@1+ (0.1,0) [0|6553.5] "V" BMS
+ SG_ PackSOC : 32|8@1+ (0.5,0) [0|127.5] "%" BMS
+ SG_ PackStatus_Alive : 48|4@1+ (1,0) [0|15] "" BMS
+ SG_ PackStatus_CRC : 56|8@1+ (1,0) [0|255] "" BMS
+
+BO_ 512 BMS_ThermalCmd: 8 BMS
+ SG_ PumpDutyCmd : 0|8@1+ (0.5,0) [0|100] "%" PLANT
+ SG_ ChillerDutyCmd : 8|8@1+ (0.5,0) [0|100] "%" PLANT
+ SG_ BmsState : 16|3@1+ (1,0) [0|4] "" PLANT
+ SG_ FaultLatched : 19|1@1+ (1,0) [0|1] "" PLANT
+ SG_ FaultFlags : 20|16@1+ (1,0) [0|65535] "" PLANT
+ SG_ ThermalCmd_Alive : 48|4@1+ (1,0) [0|15] "" PLANT
+ SG_ ThermalCmd_CRC : 56|8@1+ (1,0) [0|255] "" PLANT
+
+BO_ 528 BMS_ChargeRequest: 8 BMS
+ SG_ ChargeCurrentReq : 0|16@1+ (0.1,0) [0|6553.5] "A" CHARGER
+ SG_ ChargeVoltageReq : 16|16@1+ (0.1,0) [0|6553.5] "V" CHARGER
+ SG_ ChargeEnable : 32|1@1+ (1,0) [0|1] "" CHARGER
+ SG_ DerateFactor : 40|8@1+ (0.5,0) [0|100] "%" CHARGER
+ SG_ ChargeRequest_Alive : 48|4@1+ (1,0) [0|15] "" CHARGER
+ SG_ ChargeRequest_CRC : 56|8@1+ (1,0) [0|255] "" CHARGER
+
+BO_ 768 BMS_FaultStatus: 8 BMS
+ SG_ DiagFaultFlags : 0|16@1+ (1,0) [0|65535] "" PLANT
+ SG_ DiagBmsState : 16|3@1+ (1,0) [0|4] "" PLANT
+ SG_ WatchdogOk : 19|1@1+ (1,0) [0|1] "" PLANT
+ SG_ DiagMaxCellTemp : 24|12@1+ (0.1,-40) [-40|369.5] "degC" PLANT
+ SG_ FaultStatus_Alive : 48|4@1+ (1,0) [0|15] "" PLANT
+ SG_ FaultStatus_CRC : 56|8@1+ (1,0) [0|255] "" PLANT
+
+
+CM_ BO_ 80 "SIL only: lockstep clock frame, one per 10 ms control step.";
+CM_ BO_ 256 "Redundant cell temperature sensors A/B and coolant temperatures. E2E protected (alive counter + CRC-8 SAE J1850).";
+CM_ BO_ 272 "Pack current, voltage and SOC from the pack measurement unit.";
+CM_ BO_ 512 "Pump/chiller commands and safety state, sent every 10 ms.";
+CM_ BO_ 528 "Charge current request to the DC fast charger, sent every 10 ms.";
+CM_ BO_ 768 "Diagnostic summary sent by the 100 ms diagnostics task.";
+CM_ SG_ 512 BmsState "0=INIT 1=NORMAL 2=DERATE 3=LIMP 4=SAFE_STATE";
+
+VAL_ 512 BmsState 0 "INIT" 1 "NORMAL" 2 "DERATE" 3 "LIMP" 4 "SAFE_STATE" ;
+VAL_ 768 DiagBmsState 0 "INIT" 1 "NORMAL" 2 "DERATE" 3 "LIMP" 4 "SAFE_STATE" ;
