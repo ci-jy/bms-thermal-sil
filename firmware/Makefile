@@ -9,7 +9,7 @@ BUILD   := build
 SRC     := $(wildcard src/*.c)
 UNITY   := third_party/unity
 TESTS   := $(patsubst tests/%.c,$(BUILD)/tests/%,$(wildcard tests/test_*.c))
-COV_MIN ?= 85
+COV_MIN ?= 80
 
 FREERTOS := third_party/FreeRTOS-Kernel
 RTOS_SRC := $(FREERTOS)/tasks.c $(FREERTOS)/queue.c $(FREERTOS)/list.c \

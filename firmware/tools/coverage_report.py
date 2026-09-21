@@ -19,7 +19,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         for src in args.sources:
             out = subprocess.run(
-                ["gcov", "-b", "-n", "-o", args.objdir, os.path.abspath(src)],
+                ["gcov", "-b", "-n", "-o", os.path.abspath(args.objdir), os.path.abspath(src)],
                 capture_output=True, text=True, cwd=tmp, check=False,
             ).stdout
             block = out.split("File '")[1] if "File '" in out else ""
