@@ -38,6 +38,7 @@ void sensor_monitor_init(sensor_monitor_t *m)
     m->last_c = 0.0f;
     m->have_prev = false;
     m->stuck = false;
+    m->sample_bad = false;
 }
 
 sensor_status_t sensor_monitor_step(sensor_monitor_t *m, uint16_t raw, float value_c)
@@ -64,6 +65,7 @@ sensor_status_t sensor_monitor_step(sensor_monitor_t *m, uint16_t raw, float val
         m->stuck = true;
     }
     s.roc = debounce_step(&m->roc, roc_fail);
+    m->sample_bad = out_of_range || roc_fail;
     s.stuck = m->stuck;
 
     m->raw_prev = raw;
@@ -87,4 +89,9 @@ bool plausibility_step(plausibility_t *p, float a, float b)
 {
     const float diff = a - b;
     return debounce_step(&p->deb, (diff > p->max_diff) || (diff < -p->max_diff));
+}
+
+bool sensor_monitor_usable(const sensor_monitor_t *m, sensor_status_t s)
+{
+    return !sensor_status_faulty(s) && !m->sample_bad;
 }

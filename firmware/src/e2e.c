@@ -67,5 +67,6 @@ e2e_status_t e2e_rx_check(e2e_rx_t *rx, uint32_t can_id, const uint8_t data[8], 
 
 bool e2e_rx_timed_out(const e2e_rx_t *rx, uint32_t now_ms)
 {
-    return (uint32_t)(now_ms - rx->last_ok_ms) > rx->timeout_ms;
+    /* Signed difference: a frame stamped slightly ahead of now is not stale. */
+    return (int32_t)(now_ms - rx->last_ok_ms) > (int32_t)rx->timeout_ms;
 }

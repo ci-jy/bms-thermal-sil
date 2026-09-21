@@ -32,8 +32,8 @@ typedef struct {
     /* Inputs */
     e2e_rx_t rx_temps;
     e2e_rx_t rx_pack;
-    debounce_t e2e_crc;
-    debounce_t e2e_alive;
+    debounce_t e2e_crc[2];    /* per received message: [0] CellTemps, [1] PackStatus */
+    debounce_t e2e_alive[2];
     sensor_monitor_t mon_a;
     sensor_monitor_t mon_b;
     sensor_monitor_t mon_cool;

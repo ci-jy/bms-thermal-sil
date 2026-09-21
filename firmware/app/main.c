@@ -41,7 +41,7 @@ static QueueHandle_t g_tx_queue;
 static TaskHandle_t g_diag_task;
 static volatile uint32_t g_control_runs;
 static volatile uint32_t g_can_loops;
-static uint32_t g_now_ms;
+static uint32_t g_next_ms; /* lockstep: time of the step the next frames belong to */
 
 static StaticTask_t s_tcb_can, s_tcb_control, s_tcb_diag, s_tcb_idle;
 static StackType_t s_stack_can[STACK_WORDS], s_stack_control[STACK_WORDS];
@@ -148,11 +148,12 @@ static void control_task(void *arg)
         (void)xQueueReceive(g_rx_queue, &f, portMAX_DELAY);
         if (f.can_id == CAN_ID_SIL_SYNC) {
             const can_message_t *m = can_find_message(CAN_ID_SIL_SYNC);
-            g_now_ms = (uint32_t)can_signal_raw(&m->signals[SIG_SYNC_STEP], f.data) * BMS_CONTROL_PERIOD_MS;
-            control_cycle(g_now_ms);
+            const uint32_t now = (uint32_t)can_signal_raw(&m->signals[SIG_SYNC_STEP], f.data) * BMS_CONTROL_PERIOD_MS;
+            g_next_ms = now + BMS_CONTROL_PERIOD_MS;
+            control_cycle(now);
         } else {
             /* Frames sent before step k's SIL_Sync belong to step k. */
-            consume_frame(&f, g_now_ms + BMS_CONTROL_PERIOD_MS);
+            consume_frame(&f, g_next_ms);
         }
     }
 }
@@ -163,6 +164,7 @@ static void diag_task(void *arg)
     static uint8_t counter;
     uint32_t last_control = 0u;
     uint32_t last_can = 0u;
+    bool baseline = false;
     TickType_t wake = xTaskGetTickCount();
     for (;;) {
         if (g_realtime) {
@@ -173,7 +175,9 @@ static void diag_task(void *arg)
         const uint32_t control_runs = g_control_runs;
         const uint32_t can_loops = g_can_loops;
         /* Watchdog: both tasks must have made progress since the last check. */
-        const bool wdg_ok = ((control_runs - last_control) >= BMS_WDG_MIN_CONTROL_RUNS) && (can_loops != last_can);
+        const bool wdg_ok = !baseline ||
+            (((control_runs - last_control) >= BMS_WDG_MIN_CONTROL_RUNS) && (can_loops != last_can));
+        baseline = true;
         last_control = control_runs;
         last_can = can_loops;
 

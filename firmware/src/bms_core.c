@@ -12,8 +12,10 @@ void bms_core_init(bms_core_t *c, uint32_t now_ms)
     memset(c, 0, sizeof(*c));
     e2e_rx_init(&c->rx_temps, BMS_E2E_TIMEOUT_MS, BMS_E2E_MAX_DELTA, now_ms);
     e2e_rx_init(&c->rx_pack, BMS_E2E_TIMEOUT_MS, BMS_E2E_MAX_DELTA, now_ms);
-    debounce_init(&c->e2e_crc, BMS_E2E_ERR_INC, BMS_E2E_ERR_DEC, BMS_E2E_ERR_LIMIT);
-    debounce_init(&c->e2e_alive, BMS_E2E_ERR_INC, BMS_E2E_ERR_DEC, BMS_E2E_ERR_LIMIT);
+    for (int i = 0; i < 2; i++) {
+        debounce_init(&c->e2e_crc[i], BMS_E2E_ERR_INC, BMS_E2E_ERR_DEC, BMS_E2E_ERR_LIMIT);
+        debounce_init(&c->e2e_alive[i], BMS_E2E_ERR_INC, BMS_E2E_ERR_DEC, BMS_E2E_ERR_LIMIT);
+    }
     sensor_monitor_init(&c->mon_a);
     sensor_monitor_init(&c->mon_b);
     sensor_monitor_init(&c->mon_cool);
@@ -27,10 +29,10 @@ void bms_core_init(bms_core_t *c, uint32_t now_ms)
     c->out.state = BMS_INIT;
 }
 
-static void track_e2e(bms_core_t *c, e2e_status_t st)
+static void track_e2e(bms_core_t *c, int channel, e2e_status_t st)
 {
-    (void)debounce_step(&c->e2e_crc, st == E2E_ERR_CRC);
-    (void)debounce_step(&c->e2e_alive, (st == E2E_ERR_REPEATED) || (st == E2E_ERR_SEQUENCE));
+    (void)debounce_step(&c->e2e_crc[channel], st == E2E_ERR_CRC);
+    (void)debounce_step(&c->e2e_alive[channel], (st == E2E_ERR_REPEATED) || (st == E2E_ERR_SEQUENCE));
 }
 
 static void on_cell_temps(bms_core_t *c, const uint8_t data[8])
@@ -48,8 +50,8 @@ static void on_cell_temps(bms_core_t *c, const uint8_t data[8])
     c->st_cool = sensor_monitor_step(&c->mon_cool, raw_c, c->t_cool_in);
     c->st_cool.stuck = false; /* coolant temperature may legitimately sit still */
 
-    const bool a_ok = !sensor_status_faulty(c->st_a);
-    const bool b_ok = !sensor_status_faulty(c->st_b);
+    const bool a_ok = sensor_monitor_usable(&c->mon_a, c->st_a);
+    const bool b_ok = sensor_monitor_usable(&c->mon_b, c->st_b);
     if (a_ok && b_ok) {
         c->plaus_fault = plausibility_step(&c->plaus, c->t_a, c->t_b);
         c->t_fused = (c->t_a > c->t_b) ? c->t_a : c->t_b;
@@ -67,13 +69,13 @@ void bms_core_on_frame(bms_core_t *c, uint32_t can_id, const uint8_t data[8], ui
 {
     if (can_id == CAN_ID_CELL_TEMPS) {
         const e2e_status_t st = e2e_rx_check(&c->rx_temps, can_id, data, now_ms);
-        track_e2e(c, st);
+        track_e2e(c, 0, st);
         if (st == E2E_OK) {
             on_cell_temps(c, data);
         }
     } else if (can_id == CAN_ID_PACK_STATUS) {
         const e2e_status_t st = e2e_rx_check(&c->rx_pack, can_id, data, now_ms);
-        track_e2e(c, st);
+        track_e2e(c, 1, st);
         if (st == E2E_OK) {
             const can_message_t *m = can_find_message(CAN_ID_PACK_STATUS);
             c->pack_current_a = can_signal_get(&m->signals[SIG_PACK_I], data);
@@ -101,8 +103,8 @@ static uint16_t collect_faults(const bms_core_t *c, uint32_t now_ms, float t_fil
     f |= c->st_b.roc ? FAULT_SENS_B_ROC : 0u;
     f |= c->plaus_fault ? FAULT_SENS_AB_PLAUS : 0u;
     f |= (c->st_cool.range || c->st_cool.roc) ? FAULT_SENS_COOLANT : 0u;
-    f |= c->e2e_crc.active ? FAULT_E2E_CRC : 0u;
-    f |= c->e2e_alive.active ? FAULT_E2E_ALIVE : 0u;
+    f |= (c->e2e_crc[0].active || c->e2e_crc[1].active) ? FAULT_E2E_CRC : 0u;
+    f |= (c->e2e_alive[0].active || c->e2e_alive[1].active) ? FAULT_E2E_ALIVE : 0u;
     f |= e2e_rx_timed_out(&c->rx_temps, now_ms) ? FAULT_CAN_TIMEOUT_TEMPS : 0u;
     f |= e2e_rx_timed_out(&c->rx_pack, now_ms) ? FAULT_CAN_TIMEOUT_PACK : 0u;
     f |= (c->have_temps && t_filt > BMS_T_OVERTEMP_C) ? FAULT_OVERTEMP : 0u;

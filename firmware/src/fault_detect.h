@@ -27,6 +27,7 @@ typedef struct {
     float last_c;
     bool have_prev;
     bool stuck;
+    bool sample_bad;   /* this sample failed range or rate check (undebounced) */
 } sensor_monitor_t;
 
 typedef struct {
@@ -39,6 +40,8 @@ void sensor_monitor_init(sensor_monitor_t *m);
 /* raw is the undecoded ADC/CAN value used for stuck-at detection; value_c is physical. */
 sensor_status_t sensor_monitor_step(sensor_monitor_t *m, uint16_t raw, float value_c);
 bool sensor_status_faulty(sensor_status_t s);
+/* Usable for fusion: not qualified faulty and the latest sample passed the raw checks. */
+bool sensor_monitor_usable(const sensor_monitor_t *m, sensor_status_t s);
 
 /* Redundant-sensor plausibility: |a - b| above threshold, debounced. */
 typedef struct {
