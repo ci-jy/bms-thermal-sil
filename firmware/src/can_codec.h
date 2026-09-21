@@ -50,8 +50,9 @@ void can_set_raw(uint8_t data[8], uint8_t start, uint8_t length, uint64_t raw);
 /* Sign-extended raw value of a signal. */
 int64_t can_signal_raw(const can_signal_t *s, const uint8_t data[8]);
 float can_signal_get(const can_signal_t *s, const uint8_t data[8]);
-/* Physical value -> raw with rounding; saturates to the representable range. */
-void can_signal_set(const can_signal_t *s, uint8_t data[8], float value);
+/* Physical value -> raw with rounding; saturates to the representable range.
+ * Takes a double so 32-bit counters keep full precision. */
+void can_signal_set(const can_signal_t *s, uint8_t data[8], double value);
 void can_signal_set_raw(const can_signal_t *s, uint8_t data[8], int64_t raw);
 
 #endif

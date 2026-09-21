@@ -85,7 +85,7 @@ int main(void)
                     continue;
                 }
                 if (phys) {
-                    can_signal_set(s, d, strtof(eq + 1, NULL));
+                    can_signal_set(s, d, strtod(eq + 1, NULL));
                 } else {
                     can_signal_set_raw(s, d, strtoll(eq + 1, NULL, 10));
                 }

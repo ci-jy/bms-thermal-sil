@@ -118,9 +118,9 @@ void can_signal_set_raw(const can_signal_t *s, uint8_t data[8], int64_t raw)
     can_set_raw(data, s->start, s->length, (uint64_t)raw);
 }
 
-void can_signal_set(const can_signal_t *s, uint8_t data[8], float value)
+void can_signal_set(const can_signal_t *s, uint8_t data[8], double value)
 {
-    const double r = ((double)value - (double)s->offset) / (double)s->scale;
+    const double r = (value - (double)s->offset) / (double)s->scale;
     int64_t raw = (int64_t)((r >= 0.0) ? (r + 0.5) : (r - 0.5));
     int64_t lo = 0;
     int64_t hi = (int64_t)mask_of(s->length);

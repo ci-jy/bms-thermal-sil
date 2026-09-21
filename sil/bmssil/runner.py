@@ -8,6 +8,7 @@ The plant then integrates 10 ms with those commands.
 from __future__ import annotations
 
 import os
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -23,6 +24,7 @@ FIRMWARE = Path(os.environ.get("BMS_APP", ROOT / "firmware" / "build" / "bms_app
 DT = 0.01
 SETPOINT_C = 35.0
 T_LIMIT_C = 50.0          # peak cell temperature limit during fast charge (REQ-THM-01)
+SETTLE_BAND_C = 1.5    # regulation band around the setpoint
 FTTI_MS = 200.0           # fault-tolerant time interval (SG-2, SG-3)
 REPLY_TIMEOUT_S = 5.0
 
@@ -151,15 +153,16 @@ def compute_metrics(sc: Scenario, tr: dict, inj: FaultInjector) -> dict:
     m["overshoot_c"] = max(0.0, m["peak_cell_c"] - max(SETPOINT_C, start))
     reached = np.nonzero(tr["soc"] >= sc.charger.soc_end)[0]
     m["charge_time_s"] = float(t[reached[0]]) if reached.size else None
-    # Settling: last time the cell temperature was outside setpoint +/- 2 degC
-    # while charging, i.e. from then on it stays in band or below it.
+    # Settling: time from charge start until the cell temperature enters the
+    # setpoint +/- SETTLE_BAND_C band and stays there while charging.
     charging = tr["current"] > 1.0
-    outside = (tp > SETPOINT_C + 2.0) & charging
+    outside = (np.abs(tp - SETPOINT_C) > SETTLE_BAND_C) & charging
     if not outside.any():
         m["settling_time_s"] = 0.0
     else:
-        last = np.nonzero(outside)[0][-1]
-        m["settling_time_s"] = float(t[last]) if last < len(t) - 1 else None
+        last = int(np.nonzero(outside)[0][-1])
+        still_charging = bool(charging[last + 1:].any())
+        m["settling_time_s"] = float(t[last + 1]) if still_charging else None
     if sc.fault:
         k0 = inj.inject_step
         expected = FAULTS[sc.fault][0]
@@ -179,3 +182,17 @@ def compute_metrics(sc: Scenario, tr: dict, inj: FaultInjector) -> dict:
         m["reaction_latency_ms"] = float(hit[0]) * DT * 1000.0 if hit.size else None
         m["final_state"] = STATE_NAMES[int(state[-1])]
     return m
+
+
+def _run_one(args):
+    sc, transport = args
+    return run_scenario(sc, transport)
+
+
+def run_many(scenarios, transport: str = "socketpair", workers: int | None = None):
+    """Run independent scenarios in parallel processes (socketpair transport)."""
+    workers = workers or min(len(scenarios), max(1, (os.cpu_count() or 2) - 1), 4)
+    if workers == 1 or transport != "socketpair":
+        return [run_scenario(sc, transport) for sc in scenarios]
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(_run_one, [(sc, transport) for sc in scenarios]))
