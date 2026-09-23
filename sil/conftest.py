@@ -20,8 +20,13 @@ import pytest  # noqa: E402
 
 from bmssil.scenarios import charge_scenarios, fault_scenarios, format_table  # noqa: E402
 from bmssil.runner import run_many  # noqa: E402
+from bmssil.transport import default_transport  # noqa: E402
 
 OUT = SIL / "out"
+
+
+def pytest_report_header(config):
+    return f"SIL CAN transport: {default_transport()} (vcan0 when available, socketpair fallback)"
 
 
 @pytest.fixture(scope="session")

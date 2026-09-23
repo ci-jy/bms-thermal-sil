@@ -3,7 +3,9 @@ import numpy as np
 import pytest
 
 from bmssil.runner import Scenario, run_scenario
-from bmssil.transport import vcan_available
+import os
+
+from bmssil.transport import default_transport, vcan_available
 
 
 def short_scenario():
@@ -17,7 +19,12 @@ def assert_same(a, b):
 
 
 def test_req_can_02_lockstep_trace_is_deterministic(firmware_build):
-    assert_same(run_scenario(short_scenario(), "socketpair"), run_scenario(short_scenario(), "socketpair"))
+    assert_same(run_scenario(short_scenario()), run_scenario(short_scenario()))
+
+
+def test_suite_uses_vcan_when_available():
+    expected = "vcan" if vcan_available() else "socketpair"
+    assert default_transport() == expected or os.environ.get("BMS_TRANSPORT")
 
 
 @pytest.mark.skipif(not vcan_available(), reason="vcan0 not available (needs the vcan kernel module)")

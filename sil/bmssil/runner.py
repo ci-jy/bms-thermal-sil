@@ -17,7 +17,7 @@ import numpy as np
 from .dbc import STATE_IDS, STATE_NAMES, Codecs, e2e_crc, e2e_protect
 from .faults import FAULTS, FaultInjector
 from .plant import ChargerProfile, PackPlant, PlantParams
-from .transport import make_transport, spawn_firmware
+from .transport import default_transport, make_transport, spawn_firmware
 
 ROOT = Path(__file__).resolve().parents[2]
 FIRMWARE = Path(os.environ.get("BMS_APP", ROOT / "firmware" / "build" / "bms_app"))
@@ -58,7 +58,7 @@ class FirmwareError(RuntimeError):
     pass
 
 
-def run_scenario(sc: Scenario, transport: str = "socketpair", firmware: Path = FIRMWARE) -> Result:
+def run_scenario(sc: Scenario, transport=None, firmware: Path = FIRMWARE) -> Result:
     codecs = Codecs()
     c_temps, c_pack, c_sync = codecs["PLANT_CellTemps"], codecs["PLANT_PackStatus"], codecs["SIL_Sync"]
     c_cmd, c_req, c_diag = codecs["BMS_ThermalCmd"], codecs["BMS_ChargeRequest"], codecs["BMS_FaultStatus"]
@@ -67,6 +67,8 @@ def run_scenario(sc: Scenario, transport: str = "socketpair", firmware: Path = F
     plant = PackPlant(PlantParams(), sc.ambient_c, t0, sc.soc0, sc.charger, seed=sc.seed)
     inj = FaultInjector(sc.fault, int(round(sc.inject_at_s / DT)) if sc.fault else 0)
 
+    if transport is None:
+        transport = default_transport()
     tr = transport if not isinstance(transport, str) else make_transport(transport)
     proc = spawn_firmware(str(firmware), tr)
     rows, diag = [], []
@@ -127,6 +129,10 @@ def run_scenario(sc: Scenario, transport: str = "socketpair", firmware: Path = F
                     break
     finally:
         tr.close()
+        if tr.name != "socketpair":
+            # A shared bus is never closed under the firmware; stop it explicitly
+            # so it cannot answer frames of the next scenario.
+            proc.terminate()
         try:
             proc.wait(timeout=5)
         except Exception:
@@ -189,8 +195,10 @@ def _run_one(args):
     return run_scenario(sc, transport)
 
 
-def run_many(scenarios, transport: str = "socketpair", workers: int | None = None):
-    """Run independent scenarios in parallel processes (socketpair transport)."""
+def run_many(scenarios, transport: str | None = None, workers: int | None = None):
+    """Run scenarios over vcan0 when available (serially: one shared bus),
+    otherwise over private socketpairs in parallel processes."""
+    transport = transport or default_transport()
     workers = workers or min(len(scenarios), max(1, (os.cpu_count() or 2) - 1), 4)
     if workers == 1 or transport != "socketpair":
         return [run_scenario(sc, transport) for sc in scenarios]

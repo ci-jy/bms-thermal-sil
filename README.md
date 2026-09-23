@@ -55,7 +55,9 @@ flowchart LR
   from the FreeRTOS tick with `vTaskDelayUntil`.
 - **Transports**: SocketCAN raw socket on `vcan0` (`--can vcan0`) or an `AF_UNIX`
   `SOCK_SEQPACKET` socketpair carrying the same 16-byte `struct can_frame` (`--fd N`). The SIL
-  suite uses the socketpair by default, so it runs where the `vcan` module is missing.
+  suite runs over `vcan0` whenever that interface exists (scenarios then run one after another
+  on the shared bus) and falls back to the socketpair where the `vcan` module is missing;
+  `BMS_TRANSPORT=vcan|socketpair` forces either. pytest prints the transport in its header.
   To use vcan: `sudo modprobe vcan && sudo ip link add dev vcan0 type vcan && sudo ip link set up vcan0`.
 - **Plant** (`sil/bmssil/plant.py`): two thermal masses (350 kJ/K cells, 18 kJ/K coolant),
   pump-dependent cell-to-coolant conductance (150–600 W/K), 60 mΩ pack resistance, 7 kW chiller

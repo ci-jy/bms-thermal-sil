@@ -95,6 +95,15 @@ def spawn_firmware(binary: str, transport, extra_args=()):
     return proc
 
 
+def default_transport() -> str:
+    """vcan0 when the interface exists, otherwise the socketpair fallback.
+    BMS_TRANSPORT=vcan|socketpair overrides the choice."""
+    forced = os.environ.get("BMS_TRANSPORT")
+    if forced:
+        return forced
+    return "vcan" if vcan_available(os.environ.get("BMS_VCAN", "vcan0")) else "socketpair"
+
+
 def make_transport(kind: str):
     if kind == "socketpair":
         return SocketpairTransport()
