@@ -175,3 +175,5 @@ tries to bring up `vcan0` first.
 - **Safety concept only.** The requirements follow the spirit of ISO 26262, but there is no HARA,
   ASIL allocation or independent review, and no claim of compliance.
 - **No HIL or real CAN hardware**, and no CAN FD or bus-load modelling.
+
+Project period: 2026-09-19 to 2026-09-23.
