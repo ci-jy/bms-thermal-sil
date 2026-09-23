@@ -1,0 +1,5 @@
+cantools>=39
+python-can>=4.3
+pytest>=8
+numpy>=1.26
+matplotlib>=3.8

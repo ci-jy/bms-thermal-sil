@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-and-sil:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential linux-modules-extra-$(uname -r) || true
+          python -m pip install -r requirements.txt
+      - name: Set up vcan0 (optional; falls back to socketpair)
+        run: |
+          sudo modprobe vcan && sudo ip link add dev vcan0 type vcan && sudo ip link set up vcan0 || echo "vcan unavailable"
+      - name: Unity unit tests + branch coverage
+        run: make -C firmware test
+      - name: SIL tests
+        run: python3 -m pytest sil -q -rs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sil-results
+          path: sil/out/
