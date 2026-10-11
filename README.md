@@ -47,7 +47,7 @@ How the tests are laid out, coverage per module and the requirement-to-test mapp
 
 ## Still missing
 
-- Every result in `docs/` came over the socketpair, since the machine I used has no `vcan` module. The vcan path exists and CI tries to bring `vcan0` up, but I haven't compared traces from the two.
+- Every result in `docs/` came over the socketpair, since the machine I used has no `vcan` module. CI runs the SIL suite over the socketpair too. The vcan path exists but is untested: on a GitHub runner with `vcan0` up the firmware never answered its first step, and I haven't tracked down why.
 - `bms_app --realtime` builds, but the tests all run in lockstep, so none of this tells you anything about scheduling jitter. The watchdog test only checks the reaction. Nothing stalls a real task yet.
 - The thermal model is lumped. There's no gradient between cells, and the parameters are order-of-magnitude guesses rather than fitted to a real pack.
 - The safety requirements borrow the ISO 26262 chain from hazard to test, but nobody did a hazard analysis or reviewed them. Read them as a structured requirements list, not a safety case.
